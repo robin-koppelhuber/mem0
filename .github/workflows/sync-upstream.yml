@@ -1,0 +1,92 @@
+name: Sync fork with upstream
+
+on:
+  schedule:
+    - cron: '0 7 * * *'  # daily at 07:00 UTC — no native upstream-push trigger exists
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Fetch upstream
+        run: |
+          git remote add upstream https://github.com/mem0ai/mem0.git
+          git fetch upstream main
+
+      - name: Check if upstream has new commits
+        id: check
+        run: |
+          BEHIND=$(git rev-list --count HEAD..upstream/main)
+          UPSTREAM_SHA=$(git rev-parse --short upstream/main)
+          echo "behind=$BEHIND" >> "$GITHUB_OUTPUT"
+          echo "upstream_sha=$UPSTREAM_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Attempt merge (no-commit dry run)
+        if: steps.check.outputs.behind != '0'
+        id: merge
+        run: |
+          if git merge --no-commit --no-ff upstream/main; then
+            echo "clean=true" >> "$GITHUB_OUTPUT"
+          else
+            git merge --abort
+            echo "clean=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit and push
+        if: steps.check.outputs.behind != '0' && steps.merge.outputs.clean == 'true'
+        run: |
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: sync with upstream mem0ai/mem0@${{ steps.check.outputs.upstream_sha }}"
+          fi
+          git push
+
+      - name: Open issue on conflict
+        if: steps.check.outputs.behind != '0' && steps.merge.outputs.clean == 'false'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: open } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: 'upstream-conflict',
+              state: 'open',
+            });
+            if (open.length > 0) return;  // issue already open, don't duplicate
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: 'Manual merge required: upstream sync conflict',
+              labels: ['upstream-conflict'],
+              body: [
+                '## Upstream sync conflict',
+                '',
+                'Auto-sync with `mem0ai/mem0` hit merge conflicts at upstream commit',
+                '`mem0ai/mem0@${{ steps.check.outputs.upstream_sha }}`.',
+                '',
+                'Likely culprit: local patches in `server/dashboard/Dockerfile` or',
+                '`server/docker-compose.yaml` (see mem0ai/mem0#4993).',
+                '',
+                '**To resolve:**',
+                '```bash',
+                'git fetch upstream',
+                'git merge upstream/main',
+                '# fix conflicts, then:',
+                'git push',
+                '```',
+              ].join('\n'),
+            });
