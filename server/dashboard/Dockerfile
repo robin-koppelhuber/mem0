@@ -18,10 +18,14 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
+# Accept build args for NEXT_PUBLIC_* vars. Default to the key name (literal placeholder)
+# so entrypoint.sh runtime-substitution stays as a fallback when no build arg is supplied.
+ARG NEXT_PUBLIC_API_URL=NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_INSTANCE_NAME=NEXT_PUBLIC_INSTANCE_NAME
+
 ENV NEXT_TELEMETRY_DISABLED=1
-# Placeholder values replaced at runtime by entrypoint.sh
-ENV NEXT_PUBLIC_API_URL=NEXT_PUBLIC_API_URL
-ENV NEXT_PUBLIC_INSTANCE_NAME=NEXT_PUBLIC_INSTANCE_NAME
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+ENV NEXT_PUBLIC_INSTANCE_NAME=${NEXT_PUBLIC_INSTANCE_NAME}
 
 RUN npm run build
 
