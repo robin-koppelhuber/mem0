@@ -107,6 +107,11 @@ jest.mock("../src/llms/xai", () => ({
     .fn()
     .mockImplementation((config) => ({ type: "xai-llm", config })),
 }));
+jest.mock("../src/llms/sarvam", () => ({
+  SarvamLLM: jest
+    .fn()
+    .mockImplementation((config) => ({ type: "sarvam-llm", config })),
+}));
 jest.mock("../src/llms/litellm", () => ({
   LiteLLM: jest
     .fn()
@@ -187,6 +192,11 @@ jest.mock("../src/vector_stores/s3_vectors", () => ({
   S3Vectors: jest
     .fn()
     .mockImplementation((config) => ({ type: "s3-vectors", config })),
+}));
+jest.mock("../src/vector_stores/weaviate", () => ({
+  WeaviateDB: jest
+    .fn()
+    .mockImplementation((config) => ({ type: "weaviate", config })),
 }));
 jest.mock("../src/storage/SupabaseHistoryManager", () => ({
   SupabaseHistoryManager: jest
@@ -269,6 +279,7 @@ describe("LLMFactory", () => {
     ["lmstudio"],
     ["deepseek"],
     ["xai"],
+    ["sarvam"],
     ["litellm"],
     ["minimax"],
     ["together"],
@@ -322,6 +333,7 @@ describe("VectorStoreFactory", () => {
     ["cassandra"],
     ["s3-vectors"],
     ["s3_vectors"],
+    ["weaviate"],
   ])("creates vector store for provider '%s'", (provider) => {
     expect(() =>
       VectorStoreFactory.create(provider, dummyVSConfig),
