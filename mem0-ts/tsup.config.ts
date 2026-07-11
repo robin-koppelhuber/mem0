@@ -4,6 +4,7 @@ import pkg from "./package.json";
 const external = [
   "openai",
   "@anthropic-ai/sdk",
+  "@aws-sdk/client-neptune-graph",
   "@aws-sdk/client-s3vectors",
   "@mochow/mochow-sdk-node",
   "groq-sdk",
@@ -26,6 +27,7 @@ const external = [
   "@supabase/supabase-js",
   "@upstash/vector",
   "@zilliz/milvus2-sdk-node",
+  "@aws-sdk/client-bedrock-runtime",
   "@azure/search-documents",
   "@azure/identity",
   "cloudflare",
