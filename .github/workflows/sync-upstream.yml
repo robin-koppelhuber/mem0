@@ -13,9 +13,21 @@ jobs:
       issues: write
 
     steps:
+      # The default GITHUB_TOKEN may not push merges that touch .github/workflows/ (upstream does), so the
+      # push uses a fine-grained PAT (this repo only; Contents + Workflows: read/write) stored as SYNC_TOKEN.
+      - name: Require SYNC_TOKEN
+        env:
+          SYNC_TOKEN: ${{ secrets.SYNC_TOKEN }}
+        run: |
+          if [ -z "$SYNC_TOKEN" ]; then
+            echo "::error::Repository secret SYNC_TOKEN is missing or expired. Create a fine-grained PAT for this repo (Contents + Workflows: read/write) and store it as SYNC_TOKEN."
+            exit 1
+          fi
+
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          token: ${{ secrets.SYNC_TOKEN }}
 
       - name: Configure git identity
         run: |
@@ -50,7 +62,8 @@ jobs:
         if: steps.check.outputs.behind != '0' && steps.merge.outputs.clean == 'true'
         run: |
           if ! git diff --cached --quiet; then
-            git commit -m "chore: sync with upstream mem0ai/mem0@${{ steps.check.outputs.upstream_sha }}"
+            # [skip ci]: a PAT push triggers workflows (GITHUB_TOKEN pushes do not); upstream's CI/CD has no business running in the fork
+            git commit -m "chore: sync with upstream mem0ai/mem0@${{ steps.check.outputs.upstream_sha }} [skip ci]"
           fi
           git push
 
